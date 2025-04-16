@@ -47,6 +47,21 @@ async function run() {
       const result = await purchaseCollection.insertOne(purchase);
       res.status(200).send(result);
     });
+
+    app.get("/purchase", async (req, res) => {
+      try {
+        const email = req.query.email;
+        if (!email) return res.status(400).send({ error: "Email is required" });
+  
+        const orders = await purchaseCollection
+          .find({ buyerEmail: email })
+          .toArray();
+        res.send(orders);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({ error: "Failed to fetch orders" });
+      }
+    });
     app.put("/Foods-collection/:id", async (req, res) => {
       const { id } = req.params;
       const updatedFood = req.body;
@@ -120,7 +135,7 @@ async function run() {
       }
     });
 
-    
+
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
