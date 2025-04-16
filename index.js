@@ -52,7 +52,7 @@ async function run() {
       try {
         const email = req.query.email;
         if (!email) return res.status(400).send({ error: "Email is required" });
-  
+
         const orders = await purchaseCollection
           .find({ buyerEmail: email })
           .toArray();
@@ -60,6 +60,23 @@ async function run() {
       } catch (err) {
         console.error(err);
         res.status(500).send({ error: "Failed to fetch orders" });
+      }
+    });
+
+    app.delete("/purchase/:id", async (req, res) => {
+      const id = req.params.id;
+    
+      try {
+        const result = await purchaseCollection.deleteOne({ _id: new ObjectId(id) });
+    
+        if (result.deletedCount === 1) {
+          res.send({ message: "Order deleted" });
+        } else {
+          res.status(404).send({ error: "Order not found" });
+        }
+      } catch (error) {
+        console.error("Delete error:", error);
+        res.status(500).send({ error: "Failed to delete order" });
       }
     });
     app.put("/Foods-collection/:id", async (req, res) => {
@@ -134,8 +151,6 @@ async function run() {
         res.status(500).send({ error: "Failed to delete food item." });
       }
     });
-
-
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
