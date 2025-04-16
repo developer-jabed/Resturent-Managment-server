@@ -45,23 +45,51 @@ async function run() {
       const purchase = req.body;
 
       const result = await purchaseCollection.insertOne(purchase);
-      res.send(result);
+      res.status(200).send(result);
     });
-
-    // Update purchase count
     app.put("/Foods-collection/:id", async (req, res) => {
       const { id } = req.params;
-      const { incrementCount } = req.body;
+      const updatedFood = req.body;
 
       try {
+        // If incrementCount is sent from frontend, increase purchaseCount
+        if (updatedFood.incrementCount) {
+          const result = await foodsCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $inc: { purchaseCount: updatedFood.incrementCount } }
+          );
+
+          if (result.modifiedCount > 0) {
+            return res.send({
+              message: "Purchase count updated successfully",
+              modifiedCount: result.modifiedCount,
+            });
+          } else {
+            return res.status(404).send({
+              message: "Food item not found or no update made",
+            });
+          }
+        }
+
+        // Otherwise, update food fields normally
         const result = await foodsCollection.updateOne(
           { _id: new ObjectId(id) },
-          { $inc: { purchaseCount: incrementCount || 1 } }
+          { $set: updatedFood }
         );
-        res.send(result);
+
+        if (result.modifiedCount > 0) {
+          res.send({
+            message: "Food item updated successfully",
+            modifiedCount: result.modifiedCount,
+          });
+        } else {
+          res
+            .status(404)
+            .send({ message: "Food item not found or no changes made" });
+        }
       } catch (error) {
-        console.error("Error updating purchase count:", error);
-        res.status(500).send({ message: "Failed to update purchase count" });
+        console.error("Error updating food item:", error);
+        res.status(500).send({ message: "Failed to update food item", error });
       }
     });
 
@@ -77,6 +105,22 @@ async function run() {
       const result = await foodsCollection.findOne(query);
       res.send(result);
     });
+
+    // Express.js route for deleting a food item
+    app.delete("/Foods-collection/:id", async (req, res) => {
+      const { id } = req.params;
+      try {
+        const result = await foodsCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+        res.send(result);
+      } catch (error) {
+        console.error("Delete error:", error);
+        res.status(500).send({ error: "Failed to delete food item." });
+      }
+    });
+
+    
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
