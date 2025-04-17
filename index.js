@@ -7,13 +7,12 @@ const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 
-// ✅ Proper CORS config (must be before routes)
-app.use(
-  cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-  })
-);
+// app.use(cors({
+//   origin: 'https://resturent-managment.web.app',
+//   credentials: true
+// }));
+
+// continue with your existing code...
 
 app.use(cookieParser());
 app.use(express.json());
@@ -30,11 +29,11 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    await client.connect();
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+    // await client.connect();
+    // await client.db("admin").command({ ping: 1 });
+    // console.log(
+    //   "Pinged your deployment. You successfully connected to MongoDB!"
+    // );
 
     const foodsCollection = client
       .db("Resturent-managment")
@@ -43,6 +42,7 @@ async function run() {
     const purchaseCollection = client
       .db("Resturent-managment")
       .collection("Purchases");
+    const userCollection = client.db("Resturent-managment").collection("users");
 
     app.post("/purchase", async (req, res) => {
       const purchase = req.body;
@@ -50,15 +50,28 @@ async function run() {
       res.status(200).send(result);
     });
 
+    app.get("/users", async (req, res) => {
+      const cursor = userCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.post("/users", async (req, res) => {
+      const newUser = req.body;
+      console.log("creating new user ", newUser);
+      const result = await userCollection.insertOne(newUser);
+      res.send(result);
+    });
+
     app.post("/jwt", async (req, res) => {
       const { email } = req.body;
       const token = jwt.sign({ email }, process.env.JWT_SECRET, {
-        expiresIn: "1h",
+        expiresIn: "10h",
       });
       res
         .cookie("token", token, {
           httpOnly: true,
-          secure: false,
+          secure: process.env.NODE_ENV=== 'production'
         })
         .send({ success: true });
     });
