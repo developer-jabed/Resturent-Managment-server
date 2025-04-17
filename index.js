@@ -1,20 +1,25 @@
 const express = require("express");
 const cors = require("cors");
 const app = express();
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const port = process.env.PORT || 5000;
-const {
-  MongoClient,
-  ServerApiVersion,
-  Collection,
-  ObjectId,
-} = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 
-// DB_PASS = uZ58gV6icYZctwVz
+// ✅ Proper CORS config (must be before routes)
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
+
+app.use(cookieParser());
+app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.xo1yp.mongodb.net/?appName=Cluster0`;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -25,9 +30,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
-    // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
@@ -43,9 +46,32 @@ async function run() {
 
     app.post("/purchase", async (req, res) => {
       const purchase = req.body;
-
       const result = await purchaseCollection.insertOne(purchase);
       res.status(200).send(result);
+    });
+
+    app.post("/jwt", async (req, res) => {
+      const { email } = req.body;
+      const token = jwt.sign({ email }, process.env.JWT_SECRET, {
+        expiresIn: "1h",
+      });
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: false,
+        })
+        .send({ success: true });
+    });
+
+    app.post("/Foods-collection", async (req, res) => {
+      try {
+        const newFood = req.body;
+        const result = await foodsCollection.insertOne(newFood);
+        res.send(result);
+      } catch (error) {
+        console.error("Error inserting food:", error);
+        res.status(500).send({ error: "Failed to insert food item." });
+      }
     });
 
     app.get("/purchase", async (req, res) => {
@@ -65,10 +91,12 @@ async function run() {
 
     app.delete("/purchase/:id", async (req, res) => {
       const id = req.params.id;
-    
+
       try {
-        const result = await purchaseCollection.deleteOne({ _id: new ObjectId(id) });
-    
+        const result = await purchaseCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+
         if (result.deletedCount === 1) {
           res.send({ message: "Order deleted" });
         } else {
@@ -79,34 +107,46 @@ async function run() {
         res.status(500).send({ error: "Failed to delete order" });
       }
     });
+
     app.put("/Foods-collection/:id", async (req, res) => {
       const { id } = req.params;
       const updatedFood = req.body;
 
       try {
-        // If incrementCount is sent from frontend, increase purchaseCount
-        if (updatedFood.incrementCount) {
-          const result = await foodsCollection.updateOne(
-            { _id: new ObjectId(id) },
-            { $inc: { purchaseCount: updatedFood.incrementCount } }
-          );
+        const updateQuery = {};
+        const setFields = {};
+        const incrementFields = {};
 
-          if (result.modifiedCount > 0) {
-            return res.send({
-              message: "Purchase count updated successfully",
-              modifiedCount: result.modifiedCount,
-            });
-          } else {
-            return res.status(404).send({
-              message: "Food item not found or no update made",
-            });
+        for (const key in updatedFood) {
+          if (
+            key !== "decrementCount" &&
+            key !== "incrementPurchaseCount" &&
+            key !== "incrementCount"
+          ) {
+            setFields[key] = updatedFood[key];
           }
         }
 
-        // Otherwise, update food fields normally
+        if (updatedFood.decrementCount) {
+          incrementFields.quantity = -parseInt(updatedFood.decrementCount);
+        }
+
+        if (updatedFood.incrementPurchaseCount || updatedFood.incrementCount) {
+          incrementFields.purchaseCount = parseInt(
+            updatedFood.incrementPurchaseCount || updatedFood.incrementCount
+          );
+        }
+
+        if (Object.keys(setFields).length > 0) {
+          updateQuery.$set = setFields;
+        }
+        if (Object.keys(incrementFields).length > 0) {
+          updateQuery.$inc = incrementFields;
+        }
+
         const result = await foodsCollection.updateOne(
           { _id: new ObjectId(id) },
-          { $set: updatedFood }
+          updateQuery
         );
 
         if (result.modifiedCount > 0) {
@@ -133,12 +173,11 @@ async function run() {
 
     app.get("/Foods-collection/:id", async (req, res) => {
       const id = req.params.id;
-      const query = { _id: new ObjectId(id) }; // <-- causes error if ObjectId not imported
+      const query = { _id: new ObjectId(id) };
       const result = await foodsCollection.findOne(query);
       res.send(result);
     });
 
-    // Express.js route for deleting a food item
     app.delete("/Foods-collection/:id", async (req, res) => {
       const { id } = req.params;
       try {
@@ -152,14 +191,11 @@ async function run() {
       }
     });
   } finally {
-    // Ensures that the client will close when you finish/error
+    // Optional: close MongoDB connection
     // await client.close();
   }
 }
 run().catch(console.dir);
-
-app.use(cors());
-app.use(express.json());
 
 app.get("/", (req, res) => {
   res.send("Resturent server is Running");
