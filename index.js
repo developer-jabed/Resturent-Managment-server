@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const app = express();
@@ -5,12 +6,13 @@ const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-require("dotenv").config();
 
-// app.use(cors({
-//   origin: 'https://resturent-managment.web.app',
-//   credentials: true
-// }));
+app.use(
+  cors({
+    origin: ["https://resturent-managment.web.app", "http://localhost:5173"],
+    credentials: true,
+  })
+);
 
 // continue with your existing code...
 
@@ -71,7 +73,8 @@ async function run() {
       res
         .cookie("token", token, {
           httpOnly: true,
-          secure: process.env.NODE_ENV=== 'production'
+          secure: true, // must be true for cross-origin cookies
+          sameSite: "none",
         })
         .send({ success: true });
     });
@@ -211,7 +214,7 @@ async function run() {
 run().catch(console.dir);
 
 app.get("/", (req, res) => {
-  res.send("Resturent server is Running");
+  res.json({ message: "Resturent server is Running" });
 });
 
 app.listen(port, () => {
