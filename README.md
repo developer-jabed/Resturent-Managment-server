@@ -1,3 +1,14 @@
+# live Link : https://resturent-managment.web.app/
+# git hub client : https://github.com/developer-jabed/Resturent-managment
+# server Link : https://github.com/developer-jabed/Resturent-Managment-server
+# server Live Link : https://resturent-managment-server-side.vercel.app/
+
+
+
+
+
+
+
 # 🍽️ Restaurant Management System - Server
 
 This is the server-side code for the **Restaurant Management System**, built using Node.js, Express, and MongoDB. It provides a robust backend API to manage restaurant operations such as menus, orders, users, reservations, and staff.
